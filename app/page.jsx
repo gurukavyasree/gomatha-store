@@ -1,23 +1,12 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { MessageCircle, Sparkles, Filter } from 'lucide-react';
 
-function StoreContent() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
-
-  // Read category from URL parameter, fallback to 'All'
-  const categoryParam = searchParams.get('category') || 'All';
-  const [activeCategory, setActiveCategory] = useState(categoryParam);
+export default function Home() {
   const [products, setProducts] = useState([]);
+  const [activeCategory, setActiveCategory] = useState('All');
   const [loading, setLoading] = useState(true);
-
-  // Sync state if header links change the URL parameter
-  useEffect(() => {
-    setActiveCategory(categoryParam);
-  }, [categoryParam]);
 
   // Update with your actual WhatsApp business number (with country code, no '+')
   const whatsappNumber = '910000000000';
@@ -39,14 +28,9 @@ function StoreContent() {
     loadProducts();
   }, []);
 
-  const handleSelectCategory = (cat) => {
-    setActiveCategory(cat);
-    router.push(cat === 'All' ? '/' : `/?category=${cat}`);
-  };
-
   const categories = ['All', 'Sarees', 'Jewellery', 'Combos'];
 
-  const filteredProducts = activeCategory.toLowerCase() === 'all'
+  const filteredProducts = activeCategory === 'All'
     ? products
     : products.filter((item) => item.category?.toLowerCase() === activeCategory.toLowerCase());
 
@@ -86,7 +70,7 @@ function StoreContent() {
         </div>
 
         <div className="flex items-center justify-between pt-2 border-t border-stone-100">
-          <span className="text-base font-bold text-red-950">
+          <span className="text-base font-bold text-maroon-800">
             ₹{Number(item.price).toLocaleString('en-IN')}
           </span>
           <a
@@ -105,16 +89,16 @@ function StoreContent() {
 
   return (
     <main className="max-w-6xl mx-auto px-4 py-6 pb-20">
-      {/* Category Filter Pills */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-6 border-b border-stone-200">
+      {/* Category Quick Filter Pills */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-6 border-b border-stone-200 no-scrollbar">
         <Filter className="w-4 h-4 text-stone-400 mr-1 flex-shrink-0" />
         {categories.map((cat) => (
           <button
             key={cat}
-            onClick={() => handleSelectCategory(cat)}
+            onClick={() => setActiveCategory(cat)}
             className={`text-xs px-4 py-1.5 rounded-full font-medium whitespace-nowrap transition ${
-              activeCategory.toLowerCase() === cat.toLowerCase()
-                ? 'bg-red-950 text-white'
+              activeCategory === cat
+                ? 'bg-maroon-800 text-white'
                 : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
             }`}
           >
@@ -129,41 +113,28 @@ function StoreContent() {
         <div className="text-center py-20 text-stone-400 text-sm">
           No items published yet. Add your first item in the Admin panel!
         </div>
-      ) : activeCategory.toLowerCase() !== 'all' ? (
-        /* Single Filtered Category View (when clicked from header or pill) */
+      ) : activeCategory !== 'All' ? (
+        /* Filtered View */
         <section>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-stone-900 capitalize">
-              {activeCategory} ({filteredProducts.length})
-            </h2>
-            <button
-              onClick={() => handleSelectCategory('All')}
-              className="text-xs font-semibold text-amber-700 hover:underline"
-            >
-              Show All Products
-            </button>
+          <h2 className="text-lg font-bold text-stone-900 mb-4">{activeCategory} Collection</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
+            {filteredProducts.map(renderProductCard)}
           </div>
-          {filteredProducts.length === 0 ? (
-            <p className="text-stone-400 text-xs py-10">No items found in {activeCategory}.</p>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
-              {filteredProducts.map(renderProductCard)}
-            </div>
-          )}
         </section>
       ) : (
-        /* Default All View with Separate Sections */
+        /* Separate Categorized Views on Homepage */
         <div className="space-y-10">
+          {/* Sarees Section */}
           {sarees.length > 0 && (
             <section>
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-amber-600" />
+                  <Sparkles className="w-4 h-4 text-gold-500 text-amber-600" />
                   <h2 className="text-lg font-bold text-stone-900">Sarees Collection</h2>
                 </div>
                 <button
-                  onClick={() => handleSelectCategory('Sarees')}
-                  className="text-xs font-semibold text-red-950 hover:underline"
+                  onClick={() => setActiveCategory('Sarees')}
+                  className="text-xs font-semibold text-maroon-800 hover:underline"
                 >
                   View All ({sarees.length})
                 </button>
@@ -174,16 +145,17 @@ function StoreContent() {
             </section>
           )}
 
+          {/* Jewellery Section */}
           {jewellery.length > 0 && (
             <section>
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-amber-600" />
+                  <Sparkles className="w-4 h-4 text-gold-500 text-amber-600" />
                   <h2 className="text-lg font-bold text-stone-900">Jewellery Collection</h2>
                 </div>
                 <button
-                  onClick={() => handleSelectCategory('Jewellery')}
-                  className="text-xs font-semibold text-red-950 hover:underline"
+                  onClick={() => setActiveCategory('Jewellery')}
+                  className="text-xs font-semibold text-maroon-800 hover:underline"
                 >
                   View All ({jewellery.length})
                 </button>
@@ -196,13 +168,5 @@ function StoreContent() {
         </div>
       )}
     </main>
-  );
-}
-
-export default function Home() {
-  return (
-    <Suspense fallback={<div className="text-center py-20 text-stone-400 text-sm">Loading...</div>}>
-      <StoreContent />
-    </Suspense>
   );
 }
