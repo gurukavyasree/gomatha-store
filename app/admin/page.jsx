@@ -1,172 +1,207 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { MessageCircle, Sparkles, Filter } from 'lucide-react';
+import { useState } from 'react';
+import { Camera, Upload, CheckCircle2, ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
 
-export default function Home() {
-  const [products, setProducts] = useState([]);
-  const [activeCategory, setActiveCategory] = useState('All');
-  const [loading, setLoading] = useState(true);
+export default function AdminUploadPage() {
+  const [title, setTitle] = useState('');
+  const [category, setCategory] = useState('Sarees');
+  const [price, setPrice] = useState('');
+  const [description, setDescription] = useState('');
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [statusMessage, setStatusMessage] = useState('');
 
-  // Update with your actual WhatsApp business number (with country code, no '+')
-  const whatsappNumber = '9346259625';
-
-  useEffect(() => {
-    async function loadProducts() {
-      try {
-        const res = await fetch('/api/products');
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          setProducts(data);
-        }
-      } catch (err) {
-        console.error('Failed to load items:', err);
-      } finally {
-        setLoading(false);
-      }
+  // Handle image selection from phone camera or gallery
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      setImagePreview(URL.createObjectURL(file));
     }
-    loadProducts();
-  }, []);
-
-  const categories = ['All', 'Sarees', 'Jewellery', 'Combos'];
-
-  const filteredProducts = activeCategory === 'All'
-    ? products
-    : products.filter((item) => item.category?.toLowerCase() === activeCategory.toLowerCase());
-
-  const sarees = products.filter((item) => item.category?.toLowerCase() === 'sarees');
-  const jewellery = products.filter((item) => item.category?.toLowerCase() === 'jewellery');
-
-  const buildWhatsAppLink = (product) => {
-    const text = encodeURIComponent(
-      `Hello Gomatha Store! I am interested in ordering this product:\n\n*${product.title}*\nPrice: ₹${product.price}\nView Item: ${product.image_url}`
-    );
-    return `https://wa.me/${whatsappNumber}?text=${text}`;
   };
 
-  const renderProductCard = (item) => (
-    <div
-      key={item.id}
-      className="bg-white rounded-2xl overflow-hidden shadow-sm border border-stone-100 flex flex-col justify-between hover:shadow-md transition duration-200"
-    >
-      <div className="relative aspect-[3/4] w-full bg-stone-100 overflow-hidden">
-        <img
-          src={item.image_url}
-          alt={item.title}
-          className="w-full h-full object-cover"
-          loading="lazy"
-        />
-        <span className="absolute top-2 left-2 bg-black/60 backdrop-blur-sm text-white text-[10px] font-medium px-2 py-0.5 rounded-full uppercase tracking-wider">
-          {item.category}
-        </span>
-      </div>
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!imageFile) {
+      alert('Please upload or snap a photo of the item!');
+      return;
+    }
 
-      <div className="p-3 sm:p-4 flex flex-col flex-grow justify-between gap-3">
-        <div>
-          <h3 className="text-sm font-semibold text-stone-900 line-clamp-1">{item.title}</h3>
-          {item.description && (
-            <p className="text-xs text-stone-500 line-clamp-2 mt-1">{item.description}</p>
-          )}
-        </div>
+    setLoading(true);
+    setStatusMessage('Uploading photo...');
 
-        <div className="flex items-center justify-between pt-2 border-t border-stone-100">
-          <span className="text-base font-bold text-maroon-800">
-            ₹{Number(item.price).toLocaleString('en-IN')}
-          </span>
-          <a
-            href={buildWhatsAppLink(item)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg shadow-sm transition"
+    try {
+      // 1. Upload to Cloudinary (Free direct upload preset)
+      const cloudFormData = new FormData();
+      cloudFormData.append('file', imageFile);
+      cloudFormData.append('upload_preset', process.env.NEXT_PUBLIC_CLOUDINARY_PRESET || 'ml_default');
+
+      const cloudRes = await fetch(
+        `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
+        {
+          method: 'POST',
+          body: cloudFormData,
+        }
+      );
+
+      const cloudData = await cloudRes.json();
+      if (!cloudData.secure_url) {
+        throw new Error('Image upload failed. Check Cloudinary settings.');
+      }
+
+      setStatusMessage('Saving product details...');
+
+      // 2. Save details into database via API
+      const res = await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title,
+          category,
+          price,
+          description,
+          image_url: cloudData.secure_url,
+        }),
+      });
+
+      if (!res.ok) throw new Error('Database save failed');
+
+      setStatusMessage('Product published successfully!');
+      // Reset fields
+      setTitle('');
+      setPrice('');
+      setDescription('');
+      setImageFile(null);
+      setImagePreview(null);
+    } catch (err) {
+      console.error(err);
+      alert(`Error: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="max-w-lg mx-auto p-4 sm:p-6 pb-20">
+      <Link href="/" className="inline-flex items-center text-xs text-stone-600 mb-4 hover:text-maroon-800">
+        <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Back to Store
+      </Link>
+
+      <div className="bg-white rounded-2xl shadow-sm border border-stone-200 p-5">
+        <h1 className="text-xl font-bold text-maroon-800 mb-1">Gomatha Admin Portal</h1>
+        <p className="text-xs text-stone-500 mb-5">Snap a picture and add new inventory instantly.</p>
+
+        {statusMessage && (
+          <div className="mb-4 p-3 bg-amber-50 border border-amber-200 text-amber-900 rounded-lg text-xs flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+            <span>{statusMessage}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Photo Capture / Upload Box */}
+          <div>
+            <label className="block text-xs font-semibold text-stone-700 mb-1">
+              Product Photo *
+            </label>
+            <div className="relative border-2 border-dashed border-stone-300 hover:border-gold-500 rounded-xl p-4 text-center cursor-pointer bg-stone-50 overflow-hidden">
+              {imagePreview ? (
+                <div className="relative w-full h-48">
+                  <img
+                    src={imagePreview}
+                    alt="Preview"
+                    className="w-full h-full object-contain rounded-lg"
+                  />
+                  <span className="absolute bottom-2 right-2 bg-black/70 text-white text-[10px] px-2 py-1 rounded">
+                    Change Photo
+                  </span>
+                </div>
+              ) : (
+                <div className="py-6 flex flex-col items-center justify-center space-y-2">
+                  <Camera className="w-8 h-8 text-maroon-800" />
+                  <span className="text-xs font-medium text-stone-700">
+                    Tap to take photo or choose from gallery
+                  </span>
+                  <span className="text-[10px] text-stone-400">Supports JPG, PNG, WEBP</span>
+                </div>
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleImageChange}
+                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                required={!imagePreview}
+              />
+            </div>
+          </div>
+
+          {/* Item Category */}
+          <div>
+            <label className="block text-xs font-semibold text-stone-700 mb-1">Category *</label>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="w-full p-2.5 text-sm rounded-lg border border-stone-300 focus:outline-none focus:ring-1 focus:ring-maroon-800 bg-white"
+            >
+              <option value="Sarees">Saree (Pattu, Silk, Cotton)</option>
+              <option value="Jewellery">Jewellery (Necklace, Bangles, Haram)</option>
+              <option value="Combos">Saree & Jewellery Match Combo</option>
+            </select>
+          </div>
+
+          {/* Item Title */}
+          <div>
+            <label className="block text-xs font-semibold text-stone-700 mb-1">Item Title *</label>
+            <input
+              type="text"
+              placeholder="e.g., Pure Kanchi Pattu Saree - Deep Red"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full p-2.5 text-sm rounded-lg border border-stone-300 focus:outline-none focus:ring-1 focus:ring-maroon-800"
+              required
+            />
+          </div>
+
+          {/* Price */}
+          <div>
+            <label className="block text-xs font-semibold text-stone-700 mb-1">Price (₹) *</label>
+            <input
+              type="number"
+              placeholder="e.g., 4999"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              className="w-full p-2.5 text-sm rounded-lg border border-stone-300 focus:outline-none focus:ring-1 focus:ring-maroon-800"
+              required
+            />
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-xs font-semibold text-stone-700 mb-1">Description</label>
+            <textarea
+              rows={3}
+              placeholder="Mention weave type, zari details, blouse piece, stone work, etc."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full p-2.5 text-sm rounded-lg border border-stone-300 focus:outline-none focus:ring-1 focus:ring-maroon-800"
+            />
+          </div>
+
+          {/* Submit Button */}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-2 bg-maroon-800 hover:bg-maroon-900 text-white font-medium py-3 rounded-xl transition shadow disabled:opacity-50"
           >
-            <MessageCircle className="w-3.5 h-3.5" />
-            Order
-          </a>
-        </div>
+            <Upload className="w-4 h-4" />
+            {loading ? 'Publishing...' : 'Upload & Publish to Store'}
+          </button>
+        </form>
       </div>
     </div>
   );
-
-  return (
-    <main className="max-w-6xl mx-auto px-4 py-6 pb-20">
-      {/* Category Quick Filter Pills */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-6 border-b border-stone-200 no-scrollbar">
-        <Filter className="w-4 h-4 text-stone-400 mr-1 flex-shrink-0" />
-        {categories.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setActiveCategory(cat)}
-            className={`text-xs px-4 py-1.5 rounded-full font-medium whitespace-nowrap transition ${
-              activeCategory === cat
-                ? 'bg-maroon-800 text-white'
-                : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
-            }`}
-          >
-            {cat}
-          </button>
-        ))}
-      </div>
-
-      {loading ? (
-        <div className="text-center py-20 text-stone-400 text-sm">Loading collection...</div>
-      ) : products.length === 0 ? (
-        <div className="text-center py-20 text-stone-400 text-sm">
-          No items published yet. Add your first item in the Admin panel!
-        </div>
-      ) : activeCategory !== 'All' ? (
-        /* Filtered View */
-        <section>
-          <h2 className="text-lg font-bold text-stone-900 mb-4">{activeCategory} Collection</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
-            {filteredProducts.map(renderProductCard)}
-          </div>
-        </section>
-      ) : (
-        /* Separate Categorized Views on Homepage */
-        <div className="space-y-10">
-          {/* Sarees Section */}
-          {sarees.length > 0 && (
-            <section>
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-gold-500 text-amber-600" />
-                  <h2 className="text-lg font-bold text-stone-900">Sarees Collection</h2>
-                </div>
-                <button
-                  onClick={() => setActiveCategory('Sarees')}
-                  className="text-xs font-semibold text-maroon-800 hover:underline"
-                >
-                  View All ({sarees.length})
-                </button>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
-                {sarees.map(renderProductCard)}
-              </div>
-            </section>
-          )}
-
-          {/* Jewellery Section */}
-          {jewellery.length > 0 && (
-            <section>
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-gold-500 text-amber-600" />
-                  <h2 className="text-lg font-bold text-stone-900">Jewellery Collection</h2>
-                </div>
-                <button
-                  onClick={() => setActiveCategory('Jewellery')}
-                  className="text-xs font-semibold text-maroon-800 hover:underline"
-                >
-                  View All ({jewellery.length})
-                </button>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
-                {jewellery.map(renderProductCard)}
-              </div>
-            </section>
-          )}
-        </div>
-      )}
-    </main>
-  );
-}
+}s
