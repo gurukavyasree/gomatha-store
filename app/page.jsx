@@ -20,7 +20,7 @@ async function getProducts() {
 export default async function Home() {
   const products = await getProducts();
   // Enter your WhatsApp business number with country code (e.g., 919876543210)
-  const whatsappNumber = '910000000000'; 
+  const whatsappNumber = '6302787575'; 
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
