@@ -14,7 +14,6 @@ export default function AdminUploadPage() {
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
 
-  // Handle image selection from phone camera or gallery
   const handleImageChange = (e) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -34,10 +33,9 @@ export default function AdminUploadPage() {
     setStatusMessage('Uploading photo...');
 
     try {
-      // 1. Upload to Cloudinary (Free direct upload preset)
       const cloudFormData = new FormData();
       cloudFormData.append('file', imageFile);
-      cloudFormData.append('upload_preset', process.env.NEXT_PUBLIC_CLOUDINARY_PRESET || 'ml_default');
+      cloudFormData.append('upload_preset', process.env.NEXT_PUBLIC_CLOUDINARY_PRESET || 'td2shx0f');
 
       const cloudRes = await fetch(
         `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
@@ -54,7 +52,6 @@ export default function AdminUploadPage() {
 
       setStatusMessage('Saving product details...');
 
-      // 2. Save details into database via API
       const res = await fetch('/api/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -70,7 +67,6 @@ export default function AdminUploadPage() {
       if (!res.ok) throw new Error('Database save failed');
 
       setStatusMessage('Product published successfully!');
-      // Reset fields
       setTitle('');
       setPrice('');
       setDescription('');
@@ -102,7 +98,6 @@ export default function AdminUploadPage() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Photo Capture / Upload Box */}
           <div>
             <label className="block text-xs font-semibold text-stone-700 mb-1">
               Product Photo *
@@ -139,7 +134,6 @@ export default function AdminUploadPage() {
             </div>
           </div>
 
-          {/* Item Category */}
           <div>
             <label className="block text-xs font-semibold text-stone-700 mb-1">Category *</label>
             <select
@@ -153,7 +147,6 @@ export default function AdminUploadPage() {
             </select>
           </div>
 
-          {/* Item Title */}
           <div>
             <label className="block text-xs font-semibold text-stone-700 mb-1">Item Title *</label>
             <input
@@ -166,7 +159,6 @@ export default function AdminUploadPage() {
             />
           </div>
 
-          {/* Price */}
           <div>
             <label className="block text-xs font-semibold text-stone-700 mb-1">Price (₹) *</label>
             <input
@@ -179,7 +171,6 @@ export default function AdminUploadPage() {
             />
           </div>
 
-          {/* Description */}
           <div>
             <label className="block text-xs font-semibold text-stone-700 mb-1">Description</label>
             <textarea
@@ -191,7 +182,6 @@ export default function AdminUploadPage() {
             />
           </div>
 
-          {/* Submit Button */}
           <button
             type="submit"
             disabled={loading}
@@ -204,4 +194,4 @@ export default function AdminUploadPage() {
       </div>
     </div>
   );
-}s
+}
