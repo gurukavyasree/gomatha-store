@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient';
 
-const ADMIN_SECRET_PIN = process.env.ADMIN_PIN || '8899'; // Set your PIN in Vercel or default to 8899
+const ADMIN_SECRET_PIN = process.env.ADMIN_PIN || '8899';
 
-// GET all products (Public)
+// GET all products
 export async function GET() {
   try {
     const { data, error } = await supabase
@@ -18,7 +18,7 @@ export async function GET() {
   }
 }
 
-// POST a new product (Protected)
+// POST a new product (Protected with PIN)
 export async function POST(request) {
   try {
     const body = await request.json();
@@ -40,7 +40,7 @@ export async function POST(request) {
   }
 }
 
-// DELETE a product (Protected)
+// DELETE a product (Protected with PIN)
 export async function DELETE(request) {
   try {
     const { searchParams } = new URL(request.url);
