@@ -9,7 +9,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
 
   // Update with your actual WhatsApp business number (with country code, no '+')
-  const whatsappNumber = '910000000000';
+  const whatsappNumber = '9346259625';
 
   useEffect(() => {
     async function loadProducts() {
