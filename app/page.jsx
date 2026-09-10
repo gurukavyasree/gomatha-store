@@ -1,116 +1,208 @@
-import Image from 'next/image';
-import { MessageCircle } from 'lucide-react';
-import { supabase } from '@/lib/supabaseClient';
+'use client';
 
-export const revalidate = 0; // Ensures new uploads show up immediately
+import { Suspense, useEffect, useState } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { MessageCircle, Sparkles, Filter } from 'lucide-react';
 
-async function getProducts() {
-  const { data, error } = await supabase
-    .from('products')
-    .select('*')
-    .order('created_at', { ascending: false });
+function StoreContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
-  if (error) {
-    console.error(error);
-    return [];
-  }
-  return data || [];
-}
+  // Read category from URL parameter, fallback to 'All'
+  const categoryParam = searchParams.get('category') || 'All';
+  const [activeCategory, setActiveCategory] = useState(categoryParam);
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-export default async function Home() {
-  const products = await getProducts();
-  // Enter your WhatsApp business number with country code (e.g., 919876543210)
-  const whatsappNumber = '6302787575'; 
+  // Sync state if header links change the URL parameter
+  useEffect(() => {
+    setActiveCategory(categoryParam);
+  }, [categoryParam]);
 
-  return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      {/* Banner */}
-      <section className="text-center py-12 px-4 rounded-3xl bg-gradient-to-r from-red-50 via-amber-50 to-orange-50 border border-amber-100 mb-12 shadow-sm">
-        <h1 className="text-3xl md:text-5xl font-serif font-bold text-maroon-800 mb-3 tracking-tight">
-          Graceful Sarees & Divine Jewellery
-        </h1>
-        <p className="text-stone-600 max-w-xl mx-auto text-sm md:text-base">
-          Handcrafted sarees, pure silks, and temple jewellery curated directly for you.
-        </p>
-      </section>
+  // Update with your actual WhatsApp business number (with country code, no '+')
+  const whatsappNumber = '910000000000';
 
-      {/* Product Catalog */}
-      <section>
-        <div className="flex items-center justify-between mb-6 pb-2 border-b border-stone-200">
-          <h2 className="text-xl font-bold text-stone-800">
-            Current Collection ({products.length})
-          </h2>
-          <a
-            href="/admin"
-            className="text-xs bg-maroon-800 text-white px-3 py-1.5 rounded-full font-medium shadow hover:bg-maroon-900"
-          >
-            + Upload from Mobile
-          </a>
+  useEffect(() => {
+    async function loadProducts() {
+      try {
+        const res = await fetch('/api/products');
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setProducts(data);
+        }
+      } catch (err) {
+        console.error('Failed to load items:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadProducts();
+  }, []);
+
+  const handleSelectCategory = (cat) => {
+    setActiveCategory(cat);
+    router.push(cat === 'All' ? '/' : `/?category=${cat}`);
+  };
+
+  const categories = ['All', 'Sarees', 'Jewellery', 'Combos'];
+
+  const filteredProducts = activeCategory.toLowerCase() === 'all'
+    ? products
+    : products.filter((item) => item.category?.toLowerCase() === activeCategory.toLowerCase());
+
+  const sarees = products.filter((item) => item.category?.toLowerCase() === 'sarees');
+  const jewellery = products.filter((item) => item.category?.toLowerCase() === 'jewellery');
+
+  const buildWhatsAppLink = (product) => {
+    const text = encodeURIComponent(
+      `Hello Gomatha Store! I am interested in ordering this product:\n\n*${product.title}*\nPrice: ₹${product.price}\nView Item: ${product.image_url}`
+    );
+    return `https://wa.me/${whatsappNumber}?text=${text}`;
+  };
+
+  const renderProductCard = (item) => (
+    <div
+      key={item.id}
+      className="bg-white rounded-2xl overflow-hidden shadow-sm border border-stone-100 flex flex-col justify-between hover:shadow-md transition duration-200"
+    >
+      <div className="relative aspect-[3/4] w-full bg-stone-100 overflow-hidden">
+        <img
+          src={item.image_url}
+          alt={item.title}
+          className="w-full h-full object-cover"
+          loading="lazy"
+        />
+        <span className="absolute top-2 left-2 bg-black/60 backdrop-blur-sm text-white text-[10px] font-medium px-2 py-0.5 rounded-full uppercase tracking-wider">
+          {item.category}
+        </span>
+      </div>
+
+      <div className="p-3 sm:p-4 flex flex-col flex-grow justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold text-stone-900 line-clamp-1">{item.title}</h3>
+          {item.description && (
+            <p className="text-xs text-stone-500 line-clamp-2 mt-1">{item.description}</p>
+          )}
         </div>
 
-        {products.length === 0 ? (
-          <div className="p-12 text-center border-2 border-dashed border-stone-300 rounded-2xl bg-white">
-            <p className="text-stone-500 text-sm">
-              No items uploaded yet. Open <strong>/admin</strong> on your mobile phone to snap and upload your first product!
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-            {products.map((item) => {
-              const buyMessage = encodeURIComponent(
-                `Hi Gomatha Store, I am interested in purchasing: "${item.title}" (Price: ₹${item.price}). Please share more details.`
-              );
-              const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${buyMessage}`;
-
-              return (
-                <div
-                  key={item.id}
-                  className="bg-white rounded-2xl overflow-hidden border border-stone-100 shadow-sm hover:shadow-md transition flex flex-col justify-between"
-                >
-                  <div className="relative aspect-[4/5] w-full bg-stone-100">
-                    <img
-                      src={item.image_url}
-                      alt={item.title}
-                      className="w-full h-full object-cover"
-                    />
-                    <span className="absolute top-2 left-2 bg-black/60 backdrop-blur-sm text-white text-[10px] px-2 py-0.5 rounded-md font-medium">
-                      {item.category}
-                    </span>
-                  </div>
-
-                  <div className="p-3 md:p-4 flex flex-col flex-1 justify-between">
-                    <div>
-                      <h3 className="font-semibold text-stone-900 text-sm line-clamp-1">
-                        {item.title}
-                      </h3>
-                      {item.description && (
-                        <p className="text-stone-500 text-xs mt-1 line-clamp-2">
-                          {item.description}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="mt-4 pt-3 border-t border-stone-100 flex items-center justify-between">
-                      <span className="text-base font-bold text-maroon-800">
-                        ₹{Number(item.price).toLocaleString('en-IN')}
-                      </span>
-                      <a
-                        href={whatsappUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-2.5 py-1.5 rounded-lg font-medium transition"
-                      >
-                        <MessageCircle className="w-3.5 h-3.5" />
-                        Buy
-                      </a>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </section>
+        <div className="flex items-center justify-between pt-2 border-t border-stone-100">
+          <span className="text-base font-bold text-red-950">
+            ₹{Number(item.price).toLocaleString('en-IN')}
+          </span>
+          <a
+            href={buildWhatsAppLink(item)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg shadow-sm transition"
+          >
+            <MessageCircle className="w-3.5 h-3.5" />
+            Order
+          </a>
+        </div>
+      </div>
     </div>
+  );
+
+  return (
+    <main className="max-w-6xl mx-auto px-4 py-6 pb-20">
+      {/* Category Filter Pills */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-6 border-b border-stone-200">
+        <Filter className="w-4 h-4 text-stone-400 mr-1 flex-shrink-0" />
+        {categories.map((cat) => (
+          <button
+            key={cat}
+            onClick={() => handleSelectCategory(cat)}
+            className={`text-xs px-4 py-1.5 rounded-full font-medium whitespace-nowrap transition ${
+              activeCategory.toLowerCase() === cat.toLowerCase()
+                ? 'bg-red-950 text-white'
+                : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+            }`}
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
+
+      {loading ? (
+        <div className="text-center py-20 text-stone-400 text-sm">Loading collection...</div>
+      ) : products.length === 0 ? (
+        <div className="text-center py-20 text-stone-400 text-sm">
+          No items published yet. Add your first item in the Admin panel!
+        </div>
+      ) : activeCategory.toLowerCase() !== 'all' ? (
+        /* Single Filtered Category View (when clicked from header or pill) */
+        <section>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-stone-900 capitalize">
+              {activeCategory} ({filteredProducts.length})
+            </h2>
+            <button
+              onClick={() => handleSelectCategory('All')}
+              className="text-xs font-semibold text-amber-700 hover:underline"
+            >
+              Show All Products
+            </button>
+          </div>
+          {filteredProducts.length === 0 ? (
+            <p className="text-stone-400 text-xs py-10">No items found in {activeCategory}.</p>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
+              {filteredProducts.map(renderProductCard)}
+            </div>
+          )}
+        </section>
+      ) : (
+        /* Default All View with Separate Sections */
+        <div className="space-y-10">
+          {sarees.length > 0 && (
+            <section>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-600" />
+                  <h2 className="text-lg font-bold text-stone-900">Sarees Collection</h2>
+                </div>
+                <button
+                  onClick={() => handleSelectCategory('Sarees')}
+                  className="text-xs font-semibold text-red-950 hover:underline"
+                >
+                  View All ({sarees.length})
+                </button>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
+                {sarees.map(renderProductCard)}
+              </div>
+            </section>
+          )}
+
+          {jewellery.length > 0 && (
+            <section>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-600" />
+                  <h2 className="text-lg font-bold text-stone-900">Jewellery Collection</h2>
+                </div>
+                <button
+                  onClick={() => handleSelectCategory('Jewellery')}
+                  className="text-xs font-semibold text-red-950 hover:underline"
+                >
+                  View All ({jewellery.length})
+                </button>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
+                {jewellery.map(renderProductCard)}
+              </div>
+            </section>
+          )}
+        </div>
+      )}
+    </main>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<div className="text-center py-20 text-stone-400 text-sm">Loading...</div>}>
+      <StoreContent />
+    </Suspense>
   );
 }
