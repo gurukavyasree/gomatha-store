@@ -24,21 +24,32 @@ export default function RootLayout({ children }) {
               </span>
             </Link>
 
-            <nav className="flex items-center gap-6 text-sm font-medium text-stone-700">
-              <Link href="/?category=All" className="hover:text-red-950 transition">
-                All
+            <div className="flex items-center gap-4 sm:gap-6">
+              {/* Category Filter Navigation */}
+              <nav className="flex items-center gap-4 sm:gap-6 text-sm font-medium text-stone-700">
+                <Link href="/?category=All" className="hover:text-red-950 transition">
+                  All
+                </Link>
+                <Link href="/?category=Sarees" className="hover:text-red-950 transition">
+                  Sarees
+                </Link>
+                <Link href="/?category=Jewellery" className="hover:text-red-950 transition">
+                  Jewellery
+                </Link>
+              </nav>
+
+              {/* Mobile Upload / Admin Button */}
+              <Link
+                href="/admin"
+                className="bg-red-950 hover:bg-red-900 text-white text-xs font-semibold px-3.5 py-2 rounded-full transition shadow-sm whitespace-nowrap flex items-center gap-1.5"
+              >
+                <span>+ Mobile Upload</span>
               </Link>
-              <Link href="/?category=Sarees" className="hover:text-red-950 transition">
-                Sarees
-              </Link>
-              <Link href="/?category=Jewellery" className="hover:text-red-950 transition">
-                Jewellery
-              </Link>
-            </nav>
+            </div>
           </div>
         </header>
 
-        {/* Page Content */}
+        {/* Main Content */}
         <div className="flex-1">
           {children}
         </div>
