@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient';
 
-const ADMIN_SECRET_PIN = process.env.ADMIN_PIN || '8899'; // Set your PIN in Vercel or default to 8899
+const ADMIN_SECRET_PIN = process.env.ADMIN_PIN || '8899';
 
-// GET all products (Public)
+// GET all products
 export async function GET() {
   try {
     const { data, error } = await supabase
@@ -18,19 +18,30 @@ export async function GET() {
   }
 }
 
-// POST a new product (Protected)
+// POST a new product (Multiple images & stock supported)
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { title, category, price, description, image_url, pin } = body;
+    const { title, category, price, description, images, in_stock, stock_quantity, pin } = body;
 
     if (pin !== ADMIN_SECRET_PIN) {
       return NextResponse.json({ error: 'Unauthorized: Invalid Admin PIN' }, { status: 401 });
     }
 
+    const firstImage = images && images.length > 0 ? images[0] : '';
+
     const { data, error } = await supabase
       .from('products')
-      .insert([{ title, category, price: Number(price), description, image_url }])
+      .insert([{
+        title,
+        category,
+        price: Number(price),
+        description,
+        image_url: firstImage,
+        images: images || [],
+        in_stock: in_stock ?? true,
+        stock_quantity: Number(stock_quantity) || 1
+      }])
       .select();
 
     if (error) throw error;
@@ -40,7 +51,7 @@ export async function POST(request) {
   }
 }
 
-// DELETE a product (Protected)
+// DELETE a product
 export async function DELETE(request) {
   try {
     const { searchParams } = new URL(request.url);
