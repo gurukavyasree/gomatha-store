@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { 
   MessageCircle, Sparkles, ChevronLeft, ChevronRight, 
-  X, Maximize2, Star, Send, MessageSquare 
+  X, Maximize2, Star, Send, MessageSquare, Trash2 
 } from 'lucide-react';
 
 export default function HomePage() {
@@ -24,7 +24,7 @@ export default function HomePage() {
   const [reviewComment, setReviewComment] = useState('');
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
 
-  // Put your WhatsApp number here
+  // WhatsApp business number (include country code, without + or spaces)
   const whatsappNumber = '910000000000';
 
   useEffect(() => {
@@ -91,6 +91,19 @@ export default function HomePage() {
     }
   };
 
+  const handleDeleteReview = async (reviewId) => {
+    if (!confirm('Do you want to delete this review?')) return;
+    try {
+      const res = await fetch(`/api/reviews?id=${reviewId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete review');
+
+      setReviews(reviews.filter((r) => r.id !== reviewId));
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
   const sarees = products.filter((item) => item.category?.toLowerCase() === 'sarees');
   const jewellery = products.filter((item) => item.category?.toLowerCase() === 'jewellery');
   const combos = products.filter((item) => item.category?.toLowerCase() === 'combos');
@@ -102,12 +115,10 @@ export default function HomePage() {
     return `https://wa.me/${whatsappNumber}?text=${text}`;
   };
 
-  // Swiping Product Card Component
   const ProductCard = ({ product }) => {
     const imageList = product.images?.length > 0 ? product.images : [product.image_url];
     const [currentIdx, setCurrentIdx] = useState(0);
 
-    // Touch Swipe Logic
     const touchStartX = useRef(0);
     const touchEndX = useRef(0);
 
@@ -123,10 +134,8 @@ export default function HomePage() {
       if (!touchStartX.current || !touchEndX.current) return;
       const distance = touchStartX.current - touchEndX.current;
       if (distance > 45) {
-        // Swiped Left -> Next Image
         setCurrentIdx((prev) => (prev === imageList.length - 1 ? 0 : prev + 1));
       } else if (distance < -45) {
-        // Swiped Right -> Prev Image
         setCurrentIdx((prev) => (prev === 0 ? imageList.length - 1 : prev - 1));
       }
       touchStartX.current = 0;
@@ -135,7 +144,6 @@ export default function HomePage() {
 
     return (
       <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-stone-200 flex flex-col justify-between hover:shadow-md transition group">
-        {/* Mobile Swipe / Click Box */}
         <div
           className="relative aspect-[3/4] w-full bg-stone-100 overflow-hidden cursor-pointer select-none"
           onTouchStart={handleTouchStart}
@@ -158,7 +166,6 @@ export default function HomePage() {
             {product.category}
           </span>
 
-          {/* Swipe indicator dots */}
           {imageList.length > 1 && (
             <div className="absolute bottom-2 inset-x-0 flex justify-center gap-1">
               {imageList.map((_, i) => (
@@ -237,6 +244,7 @@ export default function HomePage() {
 
   return (
     <main className="max-w-6xl mx-auto px-4 sm:px-6 py-10 space-y-12">
+      {/* Hero Headline */}
       <section className="text-center space-y-3 pt-4 pb-2">
         <h1 className="text-3xl sm:text-5xl font-bold font-serif text-[#801426] tracking-tight">
           Graceful Sarees &amp; Divine Jewellery
@@ -246,6 +254,7 @@ export default function HomePage() {
         </p>
       </section>
 
+      {/* Toolbar */}
       <div className="flex items-center justify-between border-b border-stone-200 pb-4">
         <h2 className="text-sm sm:text-base font-semibold text-stone-800">
           Current Collection ({products.length})
@@ -266,6 +275,7 @@ export default function HomePage() {
         </div>
       ) : (
         <div className="space-y-14">
+          {/* Sarees Section */}
           <section id="sarees" className="scroll-mt-24">
             <div className="flex items-center gap-2 mb-4">
               <Sparkles className="w-5 h-5 text-[#C59B27]" />
@@ -280,6 +290,7 @@ export default function HomePage() {
             )}
           </section>
 
+          {/* Jewellery Section */}
           <section id="jewellery" className="scroll-mt-24">
             <div className="flex items-center gap-2 mb-4">
               <Sparkles className="w-5 h-5 text-[#C59B27]" />
@@ -294,6 +305,7 @@ export default function HomePage() {
             )}
           </section>
 
+          {/* Combos Section */}
           {combos.length > 0 && (
             <section id="combos" className="scroll-mt-24">
               <div className="flex items-center gap-2 mb-4">
@@ -308,7 +320,7 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Fullscreen Modal: High-Res Zoom & Reviews */}
+      {/* Fullscreen Modal: High-Res Zoom & Customer Reviews */}
       {activeModalProduct && (
         <div
           className="fixed inset-0 z-50 bg-black/95 flex flex-col justify-between overflow-y-auto backdrop-blur-sm animate-fade-in"
@@ -330,7 +342,7 @@ export default function HomePage() {
             </button>
           </div>
 
-          {/* Interactive Zoomable Slide Container */}
+          {/* Zoomable Container */}
           <div
             className="relative min-h-[50vh] sm:min-h-[60vh] flex items-center justify-center p-2 sm:p-4 overflow-hidden"
             onClick={(e) => e.stopPropagation()}
@@ -376,7 +388,7 @@ export default function HomePage() {
             )}
           </div>
 
-          {/* Thumbnail Strip & WhatsApp Button */}
+          {/* Thumbnails & WhatsApp Button */}
           <div className="px-4 py-2 flex flex-col sm:flex-row items-center justify-between gap-3 bg-stone-950/80" onClick={(e) => e.stopPropagation()}>
             <div className="flex gap-2 overflow-x-auto max-w-full">
               {modalImages.map((imgUrl, i) => (
@@ -469,7 +481,7 @@ export default function HomePage() {
                 </button>
               </form>
 
-              {/* Reviews List */}
+              {/* Reviews List with Delete Button */}
               <div className="space-y-3">
                 {reviewsLoading ? (
                   <p className="text-xs text-stone-400">Loading reviews...</p>
@@ -480,10 +492,19 @@ export default function HomePage() {
                     <div key={rev.id} className="bg-white p-3.5 rounded-xl border border-stone-100 shadow-sm space-y-1">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold text-stone-800">{rev.customer_name}</span>
-                        <div className="flex items-center text-amber-500">
-                          {[...Array(Number(rev.rating) || 5)].map((_, i) => (
-                            <Star key={i} className="w-3 h-3 fill-amber-400 text-amber-400" />
-                          ))}
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center text-amber-500">
+                            {[...Array(Number(rev.rating) || 5)].map((_, i) => (
+                              <Star key={i} className="w-3 h-3 fill-amber-400 text-amber-400" />
+                            ))}
+                          </div>
+                          <button
+                            onClick={() => handleDeleteReview(rev.id)}
+                            className="text-stone-400 hover:text-red-600 p-1 rounded transition"
+                            title="Delete this review"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </div>
                       <p className="text-xs text-stone-600">{rev.comment}</p>
