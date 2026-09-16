@@ -1,12 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Camera, Upload, Trash2, Lock, ArrowLeft, CheckCircle2, X } from 'lucide-react';
+import { useState } from 'react';
+import { Camera, Upload, Trash2, Edit3, Lock, ArrowLeft, CheckCircle2, X } from 'lucide-react';
 import Link from 'next/link';
 
 export default function AdminPage() {
   const [pin, setPin] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  // Edit Mode state
+  const [editingId, setEditingId] = useState(null);
 
   // Product Form Fields
   const [title, setTitle] = useState('');
@@ -46,9 +49,7 @@ export default function AdminPage() {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
-    const newFiles = [...selectedFiles, ...files];
-    setSelectedFiles(newFiles);
-
+    setSelectedFiles([...selectedFiles, ...files]);
     const newPreviews = files.map((f) => URL.createObjectURL(f));
     setImagePreviews([...imagePreviews, ...newPreviews]);
   };
@@ -58,64 +59,107 @@ export default function AdminPage() {
     setImagePreviews(imagePreviews.filter((_, i) => i !== index));
   };
 
+  const startEditing = (p) => {
+    setEditingId(p.id);
+    setTitle(p.title);
+    setCategory(p.category);
+    setPrice(p.price);
+    setDescription(p.description || '');
+    setStockQuantity(p.stock_quantity ?? 1);
+    setInStock(p.in_stock ?? true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const cancelEditing = () => {
+    setEditingId(null);
+    setTitle('');
+    setPrice('');
+    setDescription('');
+    setStockQuantity(1);
+    setInStock(true);
+    setSelectedFiles([]);
+    setImagePreviews([]);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (selectedFiles.length === 0) {
-      alert('Please select or snap at least one photo!');
-      return;
-    }
-
     setLoading(true);
-    setStatusMessage(`Uploading ${selectedFiles.length} photo(s) to Cloudinary...`);
 
     try {
-      // 1. Upload all selected images in parallel
-      const uploadPromises = selectedFiles.map(async (file) => {
-        const cloudFormData = new FormData();
-        cloudFormData.append('file', file);
-        cloudFormData.append('upload_preset', process.env.NEXT_PUBLIC_CLOUDINARY_PRESET || 'td2shx0f');
+      if (editingId) {
+        // UPDATE EXISTING PRODUCT
+        setStatusMessage('Saving updates...');
+        const res = await fetch('/api/products', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: editingId,
+            title,
+            category,
+            price,
+            description,
+            in_stock: inStock,
+            stock_quantity: Number(stockQuantity),
+            pin,
+          }),
+        });
 
-        const res = await fetch(
-          `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
-          { method: 'POST', body: cloudFormData }
-        );
-        const data = await res.json();
-        if (!data.secure_url) throw new Error('One or more image uploads failed');
-        return data.secure_url;
-      });
+        const resData = await res.json();
+        if (!res.ok) throw new Error(resData.error || 'Failed to update product');
 
-      const uploadedImageUrls = await Promise.all(uploadPromises);
+        setStatusMessage('Product updated successfully!');
+        cancelEditing();
+        fetchProducts();
+      } else {
+        // CREATE NEW PRODUCT
+        if (selectedFiles.length === 0) {
+          alert('Please select or snap at least one photo!');
+          setLoading(false);
+          return;
+        }
 
-      setStatusMessage('Saving product to database...');
+        setStatusMessage(`Uploading ${selectedFiles.length} photo(s)...`);
 
-      // 2. Save via API
-      const res = await fetch('/api/products', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title,
-          category,
-          price,
-          description,
-          images: uploadedImageUrls,
-          in_stock: inStock,
-          stock_quantity: Number(stockQuantity),
-          pin,
-        }),
-      });
+        const uploadPromises = selectedFiles.map(async (file) => {
+          const cloudFormData = new FormData();
+          cloudFormData.append('file', file);
+          cloudFormData.append('upload_preset', process.env.NEXT_PUBLIC_CLOUDINARY_PRESET || 'td2shx0f');
 
-      const resData = await res.json();
-      if (!res.ok) throw new Error(resData.error || 'Failed to save product');
+          const res = await fetch(
+            `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
+            { method: 'POST', body: cloudFormData }
+          );
+          const data = await res.json();
+          if (!data.secure_url) throw new Error('Image upload failed');
+          return data.secure_url;
+        });
 
-      setStatusMessage('Item successfully posted with all images!');
-      setTitle('');
-      setPrice('');
-      setDescription('');
-      setStockQuantity(1);
-      setInStock(true);
-      setSelectedFiles([]);
-      setImagePreviews([]);
-      fetchProducts();
+        const uploadedImageUrls = await Promise.all(uploadPromises);
+
+        setStatusMessage('Saving product to store...');
+
+        const res = await fetch('/api/products', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title,
+            category,
+            price,
+            description,
+            images: uploadedImageUrls,
+            in_stock: inStock,
+            stock_quantity: Number(stockQuantity),
+            pin,
+          }),
+        });
+
+        const resData = await res.json();
+        if (!res.ok) throw new Error(resData.error || 'Failed to save product');
+
+        setStatusMessage('Item successfully published!');
+        cancelEditing();
+        fetchProducts();
+      }
     } catch (err) {
       alert(err.message);
     } finally {
@@ -146,7 +190,7 @@ export default function AdminPage() {
             <Lock className="w-6 h-6" />
           </div>
           <h2 className="text-lg font-bold text-stone-900 mb-1">Gomatha Admin Access</h2>
-          <p className="text-xs text-stone-500 mb-5">Enter PIN to manage inventory and photos.</p>
+          <p className="text-xs text-stone-500 mb-5">Enter PIN to manage inventory.</p>
           <input
             type="password"
             placeholder="PIN (Default: 8899)"
@@ -170,8 +214,22 @@ export default function AdminPage() {
       </Link>
 
       <div className="bg-white rounded-2xl shadow-sm border border-stone-200 p-5 sm:p-6">
-        <h1 className="text-lg font-bold text-[#801426] mb-1">Upload New Inventory</h1>
-        <p className="text-xs text-stone-500 mb-4">Snap or select multiple photos, set stock, and publish.</p>
+        <div className="flex items-center justify-between mb-2">
+          <h1 className="text-lg font-bold text-[#801426]">
+            {editingId ? 'Edit Product Details' : 'Upload New Inventory'}
+          </h1>
+          {editingId && (
+            <button
+              onClick={cancelEditing}
+              className="text-xs bg-stone-100 hover:bg-stone-200 text-stone-700 px-2.5 py-1 rounded-md"
+            >
+              Cancel Edit
+            </button>
+          )}
+        </div>
+        <p className="text-xs text-stone-500 mb-4">
+          {editingId ? 'Modify pricing, stock level, or descriptions.' : 'Snap photos, set stock, and publish.'}
+        </p>
 
         {statusMessage && (
           <div className="mb-4 p-2.5 bg-amber-50 border border-amber-200 text-amber-900 rounded-lg text-xs flex items-center gap-2">
@@ -181,49 +239,43 @@ export default function AdminPage() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Multiple Photo Selector */}
-          <div>
-            <label className="block text-xs font-semibold text-stone-700 mb-1">
-              Product Images ({imagePreviews.length} selected) *
-            </label>
-            <div className="relative border-2 border-dashed border-stone-300 hover:border-[#C59B27] rounded-xl p-4 text-center cursor-pointer bg-stone-50">
-              <div className="py-4 flex flex-col items-center space-y-1">
-                <Camera className="w-7 h-7 text-[#801426]" />
-                <span className="text-xs font-medium text-stone-700">Tap to snap or select multiple photos</span>
-                <span className="text-[10px] text-stone-400">Add pallu, borders, jewellery angles</span>
+          {!editingId && (
+            <div>
+              <label className="block text-xs font-semibold text-stone-700 mb-1">
+                Product Images ({imagePreviews.length} selected) *
+              </label>
+              <div className="relative border-2 border-dashed border-stone-300 hover:border-[#C59B27] rounded-xl p-4 text-center cursor-pointer bg-stone-50">
+                <div className="py-4 flex flex-col items-center space-y-1">
+                  <Camera className="w-7 h-7 text-[#801426]" />
+                  <span className="text-xs font-medium text-stone-700">Tap to select or snap photos</span>
+                </div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleImagesSelect}
+                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                />
               </div>
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handleImagesSelect}
-                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-              />
-            </div>
 
-            {/* Previews Grid */}
-            {imagePreviews.length > 0 && (
-              <div className="grid grid-cols-4 gap-2 mt-3">
-                {imagePreviews.map((url, idx) => (
-                  <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-stone-200">
-                    <img src={url} alt={`Preview ${idx}`} className="w-full h-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={() => removeImage(idx)}
-                      className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-0.5 hover:bg-red-700"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                    {idx === 0 && (
-                      <span className="absolute bottom-0 inset-x-0 bg-black/70 text-white text-[9px] text-center py-0.5">
-                        Main
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+              {imagePreviews.length > 0 && (
+                <div className="grid grid-cols-4 gap-2 mt-3">
+                  {imagePreviews.map((url, idx) => (
+                    <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-stone-200">
+                      <img src={url} alt={`Preview ${idx}`} className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => removeImage(idx)}
+                        className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-0.5 hover:bg-red-700"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -251,7 +303,6 @@ export default function AdminPage() {
             </div>
           </div>
 
-          {/* Stock and Availability Controls */}
           <div className="grid grid-cols-2 gap-3 p-3 bg-stone-50 rounded-xl border border-stone-200">
             <div>
               <label className="block text-xs font-semibold text-stone-700 mb-1">Available Quantity</label>
@@ -312,12 +363,12 @@ export default function AdminPage() {
             className="w-full bg-[#801426] hover:bg-[#670f1e] text-white font-medium py-3 rounded-xl text-sm transition shadow disabled:opacity-50 flex items-center justify-center gap-2"
           >
             <Upload className="w-4 h-4" />
-            {loading ? 'Uploading Images...' : 'Publish Product'}
+            {loading ? 'Saving...' : editingId ? 'Update Product' : 'Publish Product'}
           </button>
         </form>
       </div>
 
-      {/* Delete & Stock Management */}
+      {/* Inventory Manager with Edit & Delete */}
       <div className="bg-white rounded-2xl shadow-sm border border-stone-200 p-5 sm:p-6">
         <h2 className="text-base font-bold text-stone-900 mb-3">Inventory Manager ({products.length})</h2>
         <div className="divide-y divide-stone-100">
@@ -334,17 +385,27 @@ export default function AdminPage() {
                   <div className="flex items-center gap-2 text-[11px] mt-0.5">
                     <span className="text-[#801426] font-semibold">₹{p.price}</span>
                     <span className={`px-1.5 py-0.2 rounded text-[10px] font-medium ${p.in_stock ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>
-                      {p.in_stock ? `In Stock (${p.stock_quantity ?? 1})` : 'Out of Stock'}
+                      {p.in_stock ? `Qty: ${p.stock_quantity ?? 1}` : 'Sold Out'}
                     </span>
                   </div>
                 </div>
               </div>
-              <button
-                onClick={() => handleDelete(p.id)}
-                className="text-red-500 hover:text-red-700 p-2 rounded-lg hover:bg-red-50 transition"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => startEditing(p)}
+                  className="text-stone-600 hover:text-stone-900 p-2 rounded-lg hover:bg-stone-100 transition"
+                  title="Edit Product"
+                >
+                  <Edit3 className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => handleDelete(p.id)}
+                  className="text-red-500 hover:text-red-700 p-2 rounded-lg hover:bg-red-50 transition"
+                  title="Delete Product"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           ))}
         </div>
