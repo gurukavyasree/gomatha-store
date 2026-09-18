@@ -2,6 +2,11 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient';
 
 const ADMIN_SECRET_PIN = process.env.ADMIN_PIN || '8899';
+const ADMIN_SECRET_PASS = process.env.ADMIN_PASSWORD || 'Gomatha@2026';
+
+function isAuthorized(key) {
+  return key === ADMIN_SECRET_PIN || key === ADMIN_SECRET_PASS;
+}
 
 // GET all products
 export async function GET() {
@@ -18,14 +23,15 @@ export async function GET() {
   }
 }
 
-// POST a new product (Multiple images & stock supported)
+// POST a new product
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { title, category, price, description, images, in_stock, stock_quantity, pin } = body;
+    const { title, category, price, description, images, in_stock, stock_quantity, pin, password } = body;
+    const userAuthKey = pin || password;
 
-    if (pin !== ADMIN_SECRET_PIN) {
-      return NextResponse.json({ error: 'Unauthorized: Invalid Admin PIN' }, { status: 401 });
+    if (!isAuthorized(userAuthKey)) {
+      return NextResponse.json({ error: 'Unauthorized: Invalid Admin Password or PIN' }, { status: 401 });
     }
 
     const firstImage = images && images.length > 0 ? images[0] : '';
@@ -34,9 +40,9 @@ export async function POST(request) {
       .from('products')
       .insert([{
         title,
-        category,
+        category: category || 'Sarees',
         price: Number(price),
-        description,
+        description: description || '',
         image_url: firstImage,
         images: images || [],
         in_stock: in_stock ?? true,
@@ -51,15 +57,46 @@ export async function POST(request) {
   }
 }
 
+// PUT edit/update an existing product
+export async function PUT(request) {
+  try {
+    const body = await request.json();
+    const { id, title, category, price, description, in_stock, stock_quantity, pin, password } = body;
+    const userAuthKey = pin || password;
+
+    if (!isAuthorized(userAuthKey)) {
+      return NextResponse.json({ error: 'Unauthorized: Invalid Admin Password or PIN' }, { status: 401 });
+    }
+
+    const { data, error } = await supabase
+      .from('products')
+      .update({
+        title,
+        category,
+        price: Number(price),
+        description: description || '',
+        in_stock: Boolean(in_stock),
+        stock_quantity: Number(stock_quantity),
+      })
+      .eq('id', id)
+      .select();
+
+    if (error) throw error;
+    return NextResponse.json({ success: true, product: data[0] }, { status: 200 });
+  } catch (err) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
 // DELETE a product
 export async function DELETE(request) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
-    const pin = searchParams.get('pin');
+    const userAuthKey = searchParams.get('pin') || searchParams.get('password');
 
-    if (pin !== ADMIN_SECRET_PIN) {
-      return NextResponse.json({ error: 'Unauthorized: Invalid Admin PIN' }, { status: 401 });
+    if (!isAuthorized(userAuthKey)) {
+      return NextResponse.json({ error: 'Unauthorized: Invalid Admin Password or PIN' }, { status: 401 });
     }
 
     const { error } = await supabase
