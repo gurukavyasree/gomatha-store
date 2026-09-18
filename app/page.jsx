@@ -26,7 +26,7 @@ export default function HomePage() {
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
 
   // Update this with your WhatsApp business number (country code + number, no '+' or spaces)
-  const whatsappNumber = '910000000000';
+  const whatsappNumber = '6302787575';
 
   useEffect(() => {
     async function loadProducts() {
