@@ -29,7 +29,7 @@ export default function GomathaStore() {
   const [submittingReview, setSubmittingReview] = useState(false);
 
   // Update with your WhatsApp number (Country code + 10 digits, no '+')
-  const whatsappNumber = '910000000000';
+  const whatsappNumber = '6302787575';
 
   useEffect(() => {
     async function loadStoreItems() {
