@@ -32,7 +32,7 @@ export default function GomathaStore() {
   const [submittingReview, setSubmittingReview] = useState(false);
 
   // WhatsApp Contact (Enter your WhatsApp number without '+' or spaces)
-  const whatsappNumber = '910000000000';
+  const whatsappNumber = '6302787575';
 
   useEffect(() => {
     async function loadStoreItems() {
